@@ -1,0 +1,214 @@
+<!doctype html>
+<!--
+  Synthetic fixture with deliberately planted accessibility failures.
+
+  This exists to give the harness a known-answer target: the test suite asserts
+  that specific axe rules fire here, so a silent regression in the scanner or in
+  the rule-to-criterion mapping shows up as a failing test rather than as a
+  quietly emptier report.
+
+  Planted failures, and the criterion each one is meant to exercise:
+    - <html> has no lang attribute            -> 3.1.1 Language of Page
+    - image with no alt                       -> 1.1.1 Non-text Content
+    - input with no label                     -> 1.3.1, 4.1.2
+    - grey-on-white text                      -> 1.4.3 Contrast (Minimum)
+    - button with no accessible name          -> 4.1.2 Name, Role, Value
+    - heading order jumps h1 -> h4            -> best practice (no SC)
+    - unlabelled input inside the dialog      -> 4.1.2, ONLY in the dialog state
+    - grey-on-white text inside the dialog    -> 1.4.3, ONLY in the dialog state
+
+  Planted keyboard failures, for keyboard_scan.py. axe cannot see any of these,
+  which is the point of having a second engine that drives the keyboard:
+    - button#priority-cta with tabindex="1"   -> 2.4.3 focus-order-vs-dom [review]
+                                                 (axe also notes the tabindex as a
+                                                 best practice; that is expected)
+    - a.quiet-focus with outline: none        -> 2.4.7 focus-not-visible
+    - div.chip with only an onclick           -> 2.1.1 keyboard-unreachable
+    - fieldset#tag-editor Tab handler loop    -> 2.1.2 keyboard-trap
+                                                 (last in the DOM on purpose: the
+                                                 trap ends the walk, and nothing
+                                                 interactive may sit after it or
+                                                 the probe would rightly refuse to
+                                                 judge its reachability)
+
+  Planted transition failures, for fuzz_scan.py. Neither a rule engine nor the
+  keyboard probe can see these: each one exists only between two states, and no
+  state list in properties.toml names the states they live in.
+    - #dismiss-notice removes its own banner  -> 2.4.3 focus-lost-on-close
+                                                 (focus falls to <body>)
+    - #toggle-notes shows a panel and leaves
+      aria-expanded at "false"                -> 4.1.2 state-change-unreflected
+    - #recalc writes "Totals updated." into a
+      plain div with no live region           -> 4.1.3 status-not-announced [review]
+    - #open-panel opens an aria-modal dialog
+      and never moves focus into it           -> 2.4.3 focus-not-moved-on-open [review]
+
+  Planted page-probe failures, for page_scan.py. Each is a check the rule
+  engines do not run: they ask whether an accessible name exists, not whether
+  it is any good, whether the layout survives 320px, or whether paste works.
+    - img alt="IMG_2847.jpg"                  -> 1.1.1 alt-text-filename
+    - two adjacent star icons, same alt       -> 1.1.1 alt-text-repeated [review]
+    - input#pin with onpaste="return false"   -> 3.3.8 paste-blocked-password
+    - div.ticker fixed at 640px wide          -> 1.4.10 reflow-horizontal-scroll [review]
+  img#chart-labelled is the control case: a real description that none of the
+  alt-text rules may touch.
+
+  dialog#details is the control case for the last of those: showModal() moves
+  focus for you and close() restores it, so a correctly built dialog sits beside
+  the hand-rolled one and the fuzzer has to stay silent on it.
+
+  The dialog failures are the point of the second state. `showModal()` puts the
+  dialog in the top layer and makes the rest of the document inert, so a scan of
+  the default state cannot see them and a scan of the open state sees little
+  else. Two states, two disjoint evidence sets, and neither alone is the page.
+
+  There is also a duplicate id on the two <p id="note"> elements. It does NOT
+  produce a finding, and that is correct: WCAG 2.2 removed 4.1.1 Parsing, so
+  axe retired the rule. It stays here as a regression tripwire. If a future
+  engine bump starts reporting it against a 2.2 target, the mapping is wrong.
+-->
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Demo fixture</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; max-width: 44rem; }
+    .faint { color: #b9b9b9; background: #ffffff; }
+    dialog { padding: 1.5rem; border: 1px solid #333; }
+    .icon-btn { border: 0; background: #eee; padding: .5rem .75rem; }
+    /* The focus indicator is removed and nothing replaces it. */
+    .quiet-focus { outline: none; }
+    .quiet-focus:focus, .quiet-focus:focus-visible { outline: none; }
+    .chip { display: inline-block; background: #e8e8e8; color: #1a1a1a;
+            padding: .4rem .8rem; border-radius: 1rem; cursor: pointer; }
+    /* Fixed width on purpose: at a 320px viewport this forces a horizontal
+       scrollbar, which is the 1.4.10 reflow failure the page probe measures. */
+    .ticker { width: 640px; background: #f4f4f4; padding: .25rem .5rem; }
+  </style>
+</head>
+<body>
+  <h1>Quarterly report</h1>
+
+  <img src="chart.png">
+  <img id="chart-labelled" src="regions.png" width="120" height="60"
+       alt="Bar chart: revenue by region, Q3, with EMEA highest">
+  <img src="photo.jpg" width="120" height="60" alt="IMG_2847.jpg">
+  <p>Customer rating:
+    <img src="star.png" width="16" height="16" alt="3 of 5 stars">
+    <img src="star.png" width="16" height="16" alt="3 of 5 stars">
+  </p>
+
+  <div class="ticker">Q3 close: all regions reporting, consolidation pending.</div>
+
+  <p class="faint">Revenue grew across every region this quarter.</p>
+
+  <h4>Regional breakdown</h4>
+  <p>Figures are unaudited.</p>
+
+  <form>
+    <input type="text" id="search" name="search">
+    <button class="icon-btn"><span aria-hidden="true">&#128269;</span></button>
+  </form>
+
+  <!-- Not inside a <form>: a second unnamed form would trip Equal Access's
+       aria_form_label_unique, which is a defect this fixture does not plant. -->
+  <p>
+    <label for="pin">Account PIN</label>
+    <!-- Paste disabled: the 3.3.8 failure the page probe dispatches a paste to find. -->
+    <input type="password" id="pin" name="pin" autocomplete="off" onpaste="return false">
+  </p>
+
+  <button id="priority-cta" tabindex="1">Subscribe to updates</button>
+
+  <p id="note">See the <a class="quiet-focus" href="#note">methodology appendix</a>
+  for details.</p>
+  <p id="note">Contact accounting with questions.</p>
+
+  <div class="chip" onclick="alert('exported')">Export CSV</div>
+
+  <div id="notice">
+    <p>Figures for Q3 are provisional.</p>
+    <button id="dismiss-notice">Dismiss</button>
+  </div>
+
+  <button id="toggle-notes" aria-expanded="false" aria-controls="notes">Show notes</button>
+  <div id="notes" hidden><p>Notes are compiled by the finance team.</p></div>
+
+  <button id="recalc">Recalculate totals</button>
+  <div id="calc-output"></div>
+
+  <button id="open-panel">Open filter panel</button>
+  <div id="filter-panel" role="dialog" aria-modal="true" aria-label="Filters" hidden>
+    <p>Filter the report by region.</p>
+    <button id="close-panel">Done</button>
+  </div>
+
+  <button id="open-dialog">Open details</button>
+
+  <dialog id="details">
+    <p>Detailed figures are available on request.</p>
+    <p class="faint">Figures exclude intercompany transfers.</p>
+    <input type="email" id="dialog-email" name="dialog-email">
+    <button id="close-dialog">Close</button>
+  </dialog>
+
+  <fieldset id="tag-editor">
+    <legend>Tags</legend>
+    <label for="tag-one">First tag</label>
+    <input type="text" id="tag-one" name="tag-one">
+    <label for="tag-two">Second tag</label>
+    <input type="text" id="tag-two" name="tag-two">
+  </fieldset>
+
+  <script>
+    document.getElementById('open-dialog').addEventListener('click', function () {
+      document.getElementById('details').showModal();
+    });
+    document.getElementById('close-dialog').addEventListener('click', function () {
+      document.getElementById('details').close();
+    });
+    // Planted for fuzz_scan.py. Each of these is invisible to a rule engine
+    // looking at the page at rest: the defect only exists in the transition.
+
+    // focus-lost-on-close: the banner holding focus is removed and nothing
+    // takes focus, so the browser drops it to <body>.
+    document.getElementById('dismiss-notice').addEventListener('click', function () {
+      document.getElementById('notice').remove();
+    });
+
+    // state-change-unreflected: the panel toggles, aria-expanded never does.
+    document.getElementById('toggle-notes').addEventListener('click', function () {
+      var notes = document.getElementById('notes');
+      notes.hidden = !notes.hidden;
+    });
+
+    // status-not-announced: the outcome of the action is written to a plain
+    // div with no live region and no focus move.
+    document.getElementById('recalc').addEventListener('click', function () {
+      document.getElementById('calc-output').innerHTML = '<p>Totals updated.</p>';
+    });
+
+    // focus-not-moved-on-open: a hand-rolled modal that never takes focus.
+    // The real <dialog> above is the control case: showModal() moves focus for
+    // you, so the fuzzer must stay silent on it.
+    document.getElementById('open-panel').addEventListener('click', function () {
+      document.getElementById('filter-panel').hidden = false;
+    });
+    document.getElementById('close-panel').addEventListener('click', function () {
+      document.getElementById('filter-panel').hidden = true;
+      document.getElementById('open-panel').focus();
+    });
+
+    // The keyboard trap: Tab inside the tag editor never leaves it, and no
+    // handler listens for Escape. This is the defect pattern, not an accident.
+    document.getElementById('tag-editor').addEventListener('keydown', function (e) {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        var one = document.getElementById('tag-one');
+        var two = document.getElementById('tag-two');
+        (document.activeElement === one ? two : one).focus();
+      }
+    });
+  </script>
+</body>
+</html>

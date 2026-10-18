@@ -1,0 +1,63 @@
+{
+  "name": "@okent/accessibility-scanner-keyboard-plugin",
+  "version": "0.1.1",
+  "description": "Keyboard probe plugin for github/accessibility-scanner: focus traps, unreachable controls, removed focus indicators, and focus-order divergence, found by walking the real Tab order.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/owenpkent/accessibility-scanner-keyboard-plugin.git"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepack": "npm run build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:unit": "vitest run test/walk.test.ts",
+    "test:e2e": "vitest run test/fixture.e2e.test.ts"
+  },
+  "keywords": [
+    "accessibility",
+    "a11y",
+    "keyboard",
+    "wcag",
+    "playwright",
+    "accessibility-scanner"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "peerDependencies": {
+    "playwright": ">=1.40"
+  },
+  "peerDependenciesMeta": {
+    "playwright": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "playwright": "^1.50.0",
+    "typescript": "^5.5.0",
+    "vitest": "^3.0.0"
+  },
+  "homepage": "https://github.com/owenpkent/accessibility-scanner-keyboard-plugin#readme",
+  "bugs": {
+    "url": "https://github.com/owenpkent/accessibility-scanner-keyboard-plugin/issues"
+  }
+}
