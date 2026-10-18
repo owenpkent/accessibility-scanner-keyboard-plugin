@@ -29,6 +29,8 @@ export type ProbeNotes = {
   walkComplete: boolean
   trapsFound: number
   dismissed: boolean
+  /** Selector of the modal the walk was scoped to, or null when it covered the page. */
+  modalScope: string | null
 }
 
 // Padding around an element's box when screenshotting it, so outlines and
@@ -98,8 +100,14 @@ export async function probePage(page: Page, cfg: ProbeConfig): Promise<{findings
     walkComplete: false,
     trapsFound: 0,
     dismissed: false,
+    modalScope: await evalScript<string | null>(page, S.SCOPE),
   }
-  if (!cands.length) return {findings, notes}
+  if (!cands.length) {
+    // Nothing interactive to walk is a complete walk with nothing to judge,
+    // not an interrupted one.
+    notes.walkComplete = true
+    return {findings, notes}
+  }
   const n = cands.length
 
   await evalScript(page, S.BLUR)
@@ -111,6 +119,7 @@ export async function probePage(page: Page, cfg: ProbeConfig): Promise<{findings
   const shots = new Map<number, Shot>()
   const traps: number[][] = []
   const escapedCycles: number[][] = []
+  const trapCycles: number[][] = []
   let dismissed = false
   let walkComplete = false
   let stray = 0
@@ -127,6 +136,16 @@ export async function probePage(page: Page, cfg: ProbeConfig): Promise<{findings
         if (shot) shots.set(idx, shot)
       }
     }
+  }
+
+  // Move focus past an iframe or a trap and record the landing element as
+  // visited. Without this the next Tab leaves `nxt` without it ever being
+  // counted, so it is reported unreachable and skips its focus indicator check.
+  const stepTo = async (nxt: number) => {
+    await evalScript(page, S.FOCUS, nxt)
+    barriers.add(firstVisit.length)
+    await noteVisit(nxt)
+    seq = []
   }
 
   while (step < maxSteps) {
@@ -162,6 +181,14 @@ export async function probePage(page: Page, cfg: ProbeConfig): Promise<{findings
 
     const cyc = detectCycle(seq)
     if (!cyc || escapedCycles.some(e => sameMembers(e, cyc))) continue
+    if (trapCycles.some(e => sameMembers(e, cyc))) {
+      // A second pass has walked back into a trap already reported. It is the
+      // same defect, so step past it rather than report it twice.
+      const again = nextFocusableAfter(cands, Math.max(...cyc), visited)
+      if (again === null) break
+      await stepTo(again)
+      continue
+    }
     if (new Set(cyc).size >= n) {
       // The whole page cycling is wrap behaviour, not a trap.
       walkComplete = true
@@ -175,9 +202,7 @@ export async function probePage(page: Page, cfg: ProbeConfig): Promise<{findings
         walkComplete = true
         break
       }
-      await evalScript(page, S.FOCUS, nxt)
-      barriers.add(firstVisit.length)
-      seq = []
+      await stepTo(nxt)
       continue
     }
 
@@ -206,6 +231,7 @@ export async function probePage(page: Page, cfg: ProbeConfig): Promise<{findings
     }
 
     traps.push(cyc)
+    trapCycles.push(cyc)
     const anc = await evalScript<{selector: string; html: string}>(page, S.COMMON_ANCESTOR, cyc)
     const members = cyc.map(i => `\`${cands[i]!.selector}\``).join(', ')
     findings.push({
@@ -221,9 +247,7 @@ export async function probePage(page: Page, cfg: ProbeConfig): Promise<{findings
     })
     const nxt = nextFocusableAfter(cands, Math.max(...cyc), visited)
     if (nxt === null) break
-    await evalScript(page, S.FOCUS, nxt)
-    barriers.add(firstVisit.length)
-    seq = []
+    await stepTo(nxt)
   }
   notes.walkComplete = walkComplete
   notes.trapsFound = traps.length

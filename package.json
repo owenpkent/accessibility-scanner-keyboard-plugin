@@ -1,6 +1,6 @@
 {
   "name": "@okent/accessibility-scanner-keyboard-plugin",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Keyboard probe plugin for github/accessibility-scanner: focus traps, unreachable controls, removed focus indicators, and focus-order divergence, found by walking the real Tab order.",
   "license": "MIT",
   "repository": {

@@ -114,10 +114,12 @@ const IFRAME_COUNT = `
 
 export const ENUMERATE = `() => {
 ${QUERY_ALL}${COMPOSED_ANCESTRY}${COMPOSED_SELECTOR}${SHADOW_ROOT_COUNT}
-  // dialog:modal is the well-behaved case; role alone is not proof of
-  // modality, but it is what a hand-rolled widget tends to expose instead of
-  // a real <dialog>. The first visible match wins.
-  const MODAL_SEL = 'dialog:modal, [role="dialog"], [role="alertdialog"], [aria-modal="true"]';
+  // Only a dialog that is actually modal narrows the walk: a <dialog> opened
+  // with showModal() (:modal), or one that declares aria-modal="true". A
+  // visible role="dialog" alone is routinely a cookie banner or chat widget
+  // sitting beside the page; scoping to it would silently drop the rest of
+  // the page from the scan. The first visible match wins.
+  const MODAL_SEL = 'dialog:modal, [role="dialog"][aria-modal="true"], [role="alertdialog"][aria-modal="true"]';
   let modal = null;
   for (const el of queryAllComposed(document.body, MODAL_SEL)) {
     const mcs = getComputedStyle(el);
@@ -153,7 +155,8 @@ ${QUERY_ALL}${COMPOSED_ANCESTRY}${COMPOSED_SELECTOR}${SHADOW_ROOT_COUNT}
     if (composedClosest(el, '[inert]')) continue;
     els.push(el);
   }
-  window.__kbProbe = { els: els, path: composedSelectorPath };
+  window.__kbProbe = { els: els, path: composedSelectorPath,
+    scope: modal ? composedSelectorPath(modal) : null };
   const TEXTLIKE = ['button', 'submit', 'reset', 'checkbox', 'radio', 'range',
                     'color', 'file', 'image'];
   return els.map((el, i) => {
@@ -185,6 +188,8 @@ export const FRAME_COUNT = `() => {
 ${QUERY_ALL}${IFRAME_COUNT}
   return countFrames(document.body);
 }`
+
+export const SCOPE = `() => (window.__kbProbe && window.__kbProbe.scope) || null`
 
 export const ACTIVE = `() => {
 ${DEEP_ACTIVE_ELEMENT}

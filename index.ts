@@ -80,6 +80,13 @@ export default async function keyboardScan({page, addFinding}: PluginParams): Pr
         `Tab order, traps and focus indicators inside them were not checked`,
     )
   }
+  if (notes.modalScope) {
+    // A narrowed scan must never be silent: the rest of the page was not walked.
+    console.warn(
+      `[keyboard-scan] ${url}: walk scoped to modal \`${notes.modalScope}\`; ` +
+        `everything outside it was NOT checked`,
+    )
+  }
   if (notes.dismissed) {
     console.warn(
       `[keyboard-scan] ${url}: Escape closed a container mid-walk, so the walk stopped there; ` +

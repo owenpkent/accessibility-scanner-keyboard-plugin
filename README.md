@@ -44,7 +44,7 @@ Once the package is on the scanner's npm allowlist:
 - uses: github/accessibility-scanner@v3
   with:
     scans: |
-      ["axe", {"name": "keyboard-scan", "package": "@okent/accessibility-scanner-keyboard-plugin", "version": "0.1.0"}]
+      ["axe", {"name": "keyboard-scan", "package": "@okent/accessibility-scanner-keyboard-plugin", "version": "0.1.2"}]
 ```
 
 ### As a local plugin
