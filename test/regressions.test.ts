@@ -93,3 +93,19 @@ describe('pages with no interactive controls', () => {
     expect(warn.filter(m => m.includes('did not complete'))).toEqual([])
   })
 })
+
+describe('elements that blur themselves on focus', () => {
+  const PAGE =
+    `<a href="#a" onfocus="blur();">One</a><a href="#b" onfocus="blur();">Two</a>` +
+    `<a href="#c" onfocus="blur();">Three</a><select id="menu"><option>x</option></select>` +
+    `<a href="#d" id="foot">Footer</a><button id="go">Go</button>`
+
+  it('reports them as focus removed, not unreachable, and does not stop the walk', async () => {
+    const {findings} = await scan(PAGE)
+    const removed = rule(findings, 'keyboard-focus-removed')
+    expect(removed).toHaveLength(1)
+    expect(removed[0]!.problemShort).toContain('(3 occurrences)')
+    expect(removed[0]!.solutionLong).toContain('2.4.7')
+    expect(rule(findings, 'keyboard-unreachable')).toEqual([])
+  })
+})

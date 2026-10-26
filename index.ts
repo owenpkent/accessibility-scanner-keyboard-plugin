@@ -13,6 +13,8 @@
 //   focus-not-visible    focused and unfocused screenshots of an element are
 //                        pixel-identical                          -> 2.4.7
 //                        (text-entry elements are flagged for review instead)
+//   keyboard-focus-removed an element blurs itself the moment it takes focus
+//                        (onfocus="blur()")                    -> 2.4.7, 2.4.3
 //   focus-order-vs-dom   the Tab order jumps backwards through the DOM
 //                                                                -> 2.4.3, review
 //

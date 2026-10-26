@@ -111,12 +111,15 @@ export async function probePage(page: Page, cfg: ProbeConfig): Promise<{findings
   const n = cands.length
 
   await evalScript(page, S.BLUR)
+  await evalScript(page, S.FOCUS_LOG_START)
 
   const visited = new Set<number>()
   const firstVisit: number[] = []
   const barriers = new Set<number>()
   let seq: number[] = []
   const shots = new Map<number, Shot>()
+  // Elements that took focus and gave it straight back (onfocus="blur()").
+  const removedOnFocus: number[] = []
   const traps: number[][] = []
   const escapedCycles: number[][] = []
   const trapCycles: number[][] = []
@@ -150,9 +153,22 @@ export async function probePage(page: Page, cfg: ProbeConfig): Promise<{findings
 
   while (step < maxSteps) {
     step++
+    await evalScript(page, S.FOCUS_LOG_RESET)
     await page.keyboard.press('Tab')
     await page.waitForTimeout(cfg.stepDelayMs)
-    const info = await evalScript<{idx: number; wrapped: boolean}>(page, S.ACTIVE)
+    const info = await evalScript<{idx: number; wrapped: boolean; removed: number}>(page, S.ACTIVE)
+    if (info.removed >= 0) {
+      // Focus is on the body but an element received it during this press, so
+      // this is not a wrap. Count the element as visited (it is reachable) and
+      // record it; there is nothing to screenshot, since focus never stays.
+      if (!visited.has(info.removed)) {
+        visited.add(info.removed)
+        firstVisit.push(info.removed)
+        removedOnFocus.push(info.removed)
+      }
+      seq = []
+      continue
+    }
     if (info.wrapped) {
       // The walk does not necessarily start at the top of the page. One more
       // pass picks up whatever came before the starting point; a second wrap
@@ -297,6 +313,26 @@ export async function probePage(page: Page, cfg: ProbeConfig): Promise<{findings
         occurrences: rest.length,
       })
     }
+  }
+
+  // -- focus removed on focus ------------------------------------------------
+  if (removedOnFocus.length) {
+    const list = removedOnFocus
+      .slice(0, 5)
+      .map(i => `\`${cands[i]!.selector}\``)
+      .join('; ')
+    const first = cands[removedOnFocus[0]!]!
+    findings.push({
+      ruleId: 'keyboard-focus-removed',
+      confidence: 'violation',
+      selector: first.selector,
+      html: first.html,
+      detail:
+        `${removedOnFocus.length} element(s) received focus during Tab and gave it up at once, so focus ` +
+        `landed on the page body and no focus indicator can ever show (2.4.7). The Tab sequence also ` +
+        `loses its place, which undermines 2.4.3. First few: ${list}`,
+      occurrences: removedOnFocus.length,
+    })
   }
 
   // -- focus order -----------------------------------------------------------

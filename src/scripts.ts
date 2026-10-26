@@ -191,12 +191,41 @@ ${QUERY_ALL}${IFRAME_COUNT}
 
 export const SCOPE = `() => (window.__kbProbe && window.__kbProbe.scope) || null`
 
+// Record where focus lands during a Tab press, so an element that takes focus
+// and immediately gives it back (onfocus="blur()") can be told apart from Tab
+// wrapping past the end of the page. Capture phase on document sees events from
+// inside open shadow roots too, since focus events are composed. Plain focus is
+// logged as well as focusin: Chromium skips focusin when a focus handler blurs
+// the element synchronously, but the capture-phase focus listener runs first.
+export const FOCUS_LOG_START = `() => {
+  const p = window.__kbProbe;
+  if (!p) return;
+  p.focusin = [];
+  if (p.logging) return;
+  p.logging = true;
+  const log = e => {
+    const t = e.composedPath()[0];
+    if (t && p.focusin) p.focusin.push(t);
+  };
+  document.addEventListener('focusin', log, true);
+  document.addEventListener('focus', log, true);
+}`
+
+export const FOCUS_LOG_RESET = `() => { const p = window.__kbProbe; if (p) p.focusin = []; }`
+
 export const ACTIVE = `() => {
 ${DEEP_ACTIVE_ELEMENT}
   const p = window.__kbProbe || { els: [] };
   const ae = deepActiveElement(document);
   const wrapped = !ae || ae === document.body || ae === document.documentElement;
-  return { idx: wrapped ? -1 : p.els.indexOf(ae), wrapped: wrapped };
+  // Focus is on the body but something took it during this press: it was
+  // removed on focus, not wrapped past the end.
+  let removed = -1;
+  if (wrapped) {
+    const log = p.focusin || [];
+    for (let k = log.length - 1; k >= 0 && removed < 0; k--) removed = p.els.indexOf(log[k]);
+  }
+  return { idx: wrapped ? -1 : p.els.indexOf(ae), wrapped: wrapped && removed < 0, removed: removed };
 }`
 
 export const RECT = `(i) => {

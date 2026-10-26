@@ -11,6 +11,7 @@ same thresholds, and the same refusal to treat a clean walk as a pass.
 | `keyboard-trap` | 2.1.2 No Keyboard Trap | failure: Tab cycles inside a subset of the page and Escape does not release it |
 | `keyboard-unreachable` | 2.1.1 Keyboard | failure: a visible interactive element never receives focus during a complete walk |
 | `focus-not-visible` | 2.4.7 Focus Visible | failure: screenshots of an element focused and unfocused are pixel-identical (text-entry elements are flagged for review instead, since the caret may be the only indicator and screenshots do not capture it) |
+| `keyboard-focus-removed` | 2.4.7 Focus Visible (also 2.4.3) | failure: an element gives focus up the moment it receives it, such as `onfocus="blur()"`, so focus lands on the body and no indicator can show; one finding groups them all |
 | `focus-order-vs-dom` | 2.4.3 Focus Order | review only: the Tab order jumps backwards through the DOM, usually a positive `tabindex` |
 
 Review-only findings carry a `needs review:` prefix in the issue title, the

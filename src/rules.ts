@@ -1,4 +1,4 @@
-// The four rules, and what each one asserts. These mirror lib/probe_rules.py
+// The five rules, and what each one asserts. These mirror lib/probe_rules.py
 // in the parent repository; the reason text is the same so a finding reads
 // the same whichever harness produced it.
 //
@@ -7,7 +7,7 @@
 // these checks observes a mechanical fragment of a criterion whose full
 // meaning needs a human.
 
-export type RuleId = 'keyboard-trap' | 'keyboard-unreachable' | 'focus-not-visible' | 'focus-order-vs-dom'
+export type RuleId = 'keyboard-trap' | 'keyboard-unreachable' | 'focus-not-visible' | 'keyboard-focus-removed' | 'focus-order-vs-dom'
 
 export type Rule = {
   /** WCAG 2.2 success criterion the rule supplies evidence for. */
@@ -50,6 +50,16 @@ export const RULES: Record<RuleId, Rule> = {
     solutionShort:
       'restore a focus indicator (usually the removed outline) or provide a replacement with ' +
       'sufficient contrast',
+    asserts: 'violation',
+  },
+  'keyboard-focus-removed': {
+    wcagSc: '2.4.7',
+    problemShort:
+      'an element gives up keyboard focus the moment it receives it',
+    problemUrl: `${UNDERSTANDING}focus-visible`,
+    solutionShort:
+      'stop removing focus from the element (delete the blur() call or script that moves focus away); ' +
+      'a focus outline is the supported way to restyle it',
     asserts: 'violation',
   },
   'focus-order-vs-dom': {
